@@ -1,0 +1,58 @@
+{
+  "name": "@radost-it/trace-graph",
+  "version": "0.1.0",
+  "description": "Incremental knowledge-graph core: stable entity ids, idempotent merge, degree centrality, Louvain communities and size capping. Pure JavaScript, no DOM.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Radost-IT/trace-graph.git"
+  },
+  "keywords": [
+    "knowledge-graph",
+    "graph",
+    "louvain",
+    "entity-resolution",
+    "graphology",
+    "react-native",
+    "no-dom"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --experimental-strip-types --test test/*.test.ts",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "homepage": "https://github.com/Radost-IT/trace-graph#readme",
+  "bugs": {
+    "url": "https://github.com/Radost-IT/trace-graph/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
