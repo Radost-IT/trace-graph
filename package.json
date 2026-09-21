@@ -38,7 +38,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --experimental-strip-types --test test/*.test.ts",
-    "prepare": "npm run build"
+    "prepack": "npm run build"
   },
   "dependencies": {
     "graphology": "^0.26.0",
@@ -46,7 +46,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "homepage": "https://github.com/Radost-IT/trace-graph#readme",
   "bugs": {

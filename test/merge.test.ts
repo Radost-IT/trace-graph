@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_MAX_NODES,
+  applyMetrics,
   capNodes,
+  dropIsolated,
   emptySnapshot,
   entityId,
   mergeExtraction,
   normaliseLabel,
+  shortenRelation,
   type ExtractionResult,
   type GraphNode,
 } from "../dist/index.js";
@@ -72,21 +75,24 @@ test("relations naming unknown entities are dropped, never invented", () => {
     AT,
   );
 
-  assert.equal(snapshot.nodes.length, 1);
   assert.equal(snapshot.edges.length, 0, "unknown endpoint and self-edge both dropped");
+  // And with no edge left, NASA has nothing to be connected to either.
+  assert.equal(snapshot.nodes.length, 0);
 });
 
 test("the first summary and firstSeenAt win over later windows", () => {
-  const first = mergeExtraction(
-    emptySnapshot("s"),
-    extraction({ entities: [{ label: "NASA", type: "organisation", summary: "First." }] }),
-    AT,
-  );
-  const second = mergeExtraction(
-    first,
-    extraction({ entities: [{ label: "NASA", type: "organisation", summary: "Second." }] }),
-    LATER,
-  );
+  // Every entity here carries a relation, because one without is dropped.
+  const window = (summary: string) =>
+    extraction({
+      entities: [
+        { label: "NASA", type: "organisation", summary },
+        { label: "Titan", type: "place", summary: "A moon." },
+      ],
+      relations: [{ source: "NASA", target: "Titan", label: "explores" }],
+    });
+
+  const first = mergeExtraction(emptySnapshot("s"), window("First."), AT);
+  const second = mergeExtraction(first, window("Second."), LATER);
 
   assert.equal(second.nodes[0]!.summary, "First.");
   assert.equal(second.nodes[0]!.firstSeenAt, AT);
@@ -94,16 +100,17 @@ test("the first summary and firstSeenAt win over later windows", () => {
 });
 
 test("an empty summary is replaced rather than kept", () => {
-  const first = mergeExtraction(
-    emptySnapshot("s"),
-    extraction({ entities: [{ label: "NASA", type: "organisation", summary: "" }] }),
-    AT,
-  );
-  const second = mergeExtraction(
-    first,
-    extraction({ entities: [{ label: "NASA", type: "organisation", summary: "Grounded." }] }),
-    LATER,
-  );
+  const window = (summary: string) =>
+    extraction({
+      entities: [
+        { label: "NASA", type: "organisation", summary },
+        { label: "Titan", type: "place", summary: "A moon." },
+      ],
+      relations: [{ source: "NASA", target: "Titan", label: "explores" }],
+    });
+
+  const first = mergeExtraction(emptySnapshot("s"), window(""), AT);
+  const second = mergeExtraction(first, window("Grounded."), LATER);
 
   assert.equal(second.nodes[0]!.summary, "Grounded.");
 });
@@ -233,25 +240,37 @@ test("the snapshot is capped at DEFAULT_MAX_NODES when no limit is given", () =>
     type: "person" as const,
     summary: "s",
   }));
+  // Chained, so none of them is isolated and the cap is what does the work.
+  const relations = entities.slice(1).map((e, i) => ({
+    source: entities[i]!.label,
+    target: e.label,
+    label: "knows",
+  }));
 
-  const snapshot = mergeExtraction(emptySnapshot("s"), extraction({ entities }), AT);
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({ entities, relations }),
+    AT,
+  );
   assert.equal(snapshot.nodes.length, DEFAULT_MAX_NODES);
 });
 
 test("an all-isolates graph gets community 0 rather than throwing", () => {
-  const snapshot = mergeExtraction(
-    emptySnapshot("s"),
-    extraction({
-      entities: [
-        { label: "A", type: "person", summary: "a" },
-        { label: "B", type: "person", summary: "b" },
-      ],
-    }),
-    AT,
-  );
+  // Louvain needs at least one edge. `mergeExtraction` no longer keeps an
+  // isolated node long enough to show this, so it is checked on the metrics
+  // pass directly - which is the function that has to survive the case.
+  const node = (id: string): GraphNode => ({
+    id,
+    type: "person",
+    label: id,
+    summary: "",
+    degree: 0,
+    community: 7,
+    firstSeenAt: AT,
+  });
 
   assert.deepEqual(
-    snapshot.nodes.map((n) => n.community),
+    applyMetrics([node("a"), node("b")], []).map((n) => n.community),
     [0, 0],
   );
 });
@@ -287,4 +306,112 @@ test("entities with a blank label are skipped", () => {
   );
 
   assert.equal(snapshot.nodes.length, 0);
+});
+
+test("shortenRelation strips stacked auxiliaries", () => {
+  assert.equal(shortenRelation("is being assembled at"), "assembled at");
+  assert.equal(shortenRelation("has launched"), "launched");
+  assert.equal(shortenRelation("will  explore "), "explore");
+  // Nothing to strip is left exactly as it came.
+  assert.equal(shortenRelation("leads"), "leads");
+  assert.equal(shortenRelation("wished good luck to"), "wished good luck to");
+});
+
+test("shortenRelation swaps long connectors for short ones", () => {
+  assert.equal(shortenRelation("in collaboration with"), "with");
+  assert.equal(shortenRelation("is headquartered in"), "based in");
+  assert.equal(shortenRelation("is a member of"), "member of");
+});
+
+test("shortenRelation reports an empty label as empty", () => {
+  assert.equal(shortenRelation("   "), "");
+  assert.equal(shortenRelation("the"), "");
+});
+
+test("an unlabelled relation is dropped rather than drawn blank", () => {
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({
+      entities: [
+        { label: "NASA", type: "organisation", summary: "Runs it." },
+        { label: "Titan", type: "place", summary: "A moon." },
+        { label: "Dragonfly", type: "event", summary: "A mission." },
+      ],
+      relations: [
+        { source: "NASA", target: "Titan", label: "   " },
+        { source: "Dragonfly", target: "Titan", label: "will explore" },
+      ],
+    }),
+    AT,
+  );
+
+  assert.equal(snapshot.edges.length, 1);
+  assert.equal(snapshot.edges[0]!.label, "explore");
+});
+
+test("an entity with no relation never reaches the snapshot", () => {
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({
+      entities: [
+        { label: "NASA", type: "organisation", summary: "Runs it." },
+        { label: "Titan", type: "place", summary: "A moon." },
+        { label: "Mauritius", type: "place", summary: "Named in passing." },
+      ],
+      relations: [{ source: "NASA", target: "Titan", label: "explores" }],
+    }),
+    AT,
+  );
+
+  assert.deepEqual(
+    snapshot.nodes.map((n) => n.id).sort(),
+    ["organisation:nasa", "place:titan"],
+  );
+});
+
+test("an isolated node already stored is dropped on the next merge", () => {
+  // Guards the order of operations: metrics, then isolation, then the cap.
+  const stale = {
+    ...emptySnapshot("s"),
+    nodes: [
+      {
+        id: "place:serbia",
+        type: "place" as const,
+        label: "Serbia",
+        summary: "Named once.",
+        degree: 0,
+        community: 0,
+        firstSeenAt: AT,
+      },
+    ],
+  };
+
+  const snapshot = mergeExtraction(
+    stale,
+    extraction({
+      entities: [
+        { label: "NASA", type: "organisation", summary: "Runs it." },
+        { label: "Titan", type: "place", summary: "A moon." },
+      ],
+      relations: [{ source: "NASA", target: "Titan", label: "explores" }],
+    }),
+    LATER,
+  );
+
+  assert.equal(
+    snapshot.nodes.some((n) => n.id === "place:serbia"),
+    false,
+  );
+});
+
+test("dropIsolated keeps both ends of every edge", () => {
+  const nodes: GraphNode[] = [
+    { id: "a", type: "person", label: "A", summary: "", degree: 1, community: 0, firstSeenAt: AT },
+    { id: "b", type: "person", label: "B", summary: "", degree: 1, community: 0, firstSeenAt: AT },
+    { id: "c", type: "person", label: "C", summary: "", degree: 0, community: 0, firstSeenAt: AT },
+  ];
+  const kept = dropIsolated(nodes, [
+    { id: "a|b", source: "a", target: "b", label: "knows", firstSeenAt: AT },
+  ]);
+  assert.deepEqual(kept.map((n) => n.id), ["a", "b"]);
 });

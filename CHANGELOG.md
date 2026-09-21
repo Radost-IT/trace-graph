@@ -12,7 +12,38 @@ ever land in a major release, and it will always say so here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `shortenRelation(label)`. Relation labels are drawn on an edge at half the
+  size of an entity name, and a model asked for "1-4 words" still answers "is
+  being assembled at". It collapses whitespace, strips leading auxiliaries and
+  articles, and maps a small table of long connectors onto short ones
+  (`"in collaboration with"` -> `"with"`). Conservative by design: only
+  transforms that cannot change what the relation means. Anything still long
+  is left for the renderer to wrap or ellipsise.
+- `dropIsolated(nodes, edges)`. Returns only the nodes an edge reaches.
+
+### Changed
+
+- **`mergeExtraction` no longer keeps a node that has no edge.** A circle with
+  no relation carries nothing a graph can say and nothing a viewer can act on.
+  This is lossy on purpose: an entity named in one window with no relation is
+  gone, and comes back only if a later window names it again alongside the
+  relation that earns it a place. Producers that relied on isolated entities
+  surviving need to keep their own list.
+- **A relation whose label is empty once shortened is dropped**, rather than
+  stored as a line with nothing written on it.
+- Relation labels are stored already shortened, so every consumer reads the
+  same string.
+
+- Build runs on `prepack` instead of `prepare`. npm runs a `file:` dependency's
+  `prepare` during the consumer's install but never installs that dependency's
+  devDependencies, so a consumer linking this package from a sibling checkout
+  hit `tsc: not found`. `prepack` still covers `npm publish` and `npm pack`,
+  which is what the script was there for; `npm install` in a fresh clone of
+  this repo no longer builds `dist/` on its own, so run `npm run build` (or
+  `npm test`, which builds first).
+- Dev dependency `typescript` moved to `^7.0.2`.
 
 ## [0.1.0] - 2026-09-19
 

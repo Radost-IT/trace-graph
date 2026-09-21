@@ -1,6 +1,7 @@
 import { GraphSnapshot, type ExtractionResult } from "./schema.js";
 import { entityId, normaliseLabel } from "./ids.js";
-import { applyMetrics, capNodes } from "./metrics.js";
+import { shortenRelation } from "./relations.js";
+import { applyMetrics, capNodes, dropIsolated } from "./metrics.js";
 
 // Matches the TV renderer's comfortable ceiling. Callers that store snapshots
 // under a size limit should pass their own.
@@ -62,13 +63,19 @@ export function mergeExtraction(
     // that we drop the edge rather than invent a node for it.
     if (!source || !target || source === target) continue;
 
+    // An edge with nothing written on it is a line between two circles. It
+    // cannot be read, so it is not drawn and not stored.
+    const label = shortenRelation(relation.label);
+    if (!label) continue;
+
     const id = `${source}|${target}`;
     if (edges.has(id)) continue;
-    edges.set(id, { id, source, target, label: relation.label, firstSeenAt: seenAt });
+    edges.set(id, { id, source, target, label, firstSeenAt: seenAt });
   }
 
   const withMetrics = applyMetrics([...nodes.values()], [...edges.values()]);
-  const capped = capNodes(withMetrics, [...edges.values()], maxNodes);
+  const connected = dropIsolated(withMetrics, [...edges.values()]);
+  const capped = capNodes(connected, [...edges.values()], maxNodes);
 
   return GraphSnapshot.parse({
     sessionId: snapshot.sessionId,

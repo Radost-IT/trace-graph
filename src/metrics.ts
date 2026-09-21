@@ -36,6 +36,20 @@ export const applyMetrics = (nodes: GraphNode[], edges: GraphEdge[]): GraphNode[
   }));
 };
 
+// A node nobody is connected to says nothing a graph can say: it carries no
+// relation, so the only thing it adds to the picture is a circle the viewer
+// cannot act on. Dropping it is lossy on purpose - an entity named in one
+// window with no relation is gone, and only comes back if a later window names
+// it again alongside the relation that earns it a place.
+export const dropIsolated = (nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] => {
+  const linked = new Set<string>();
+  for (const edge of edges) {
+    linked.add(edge.source);
+    linked.add(edge.target);
+  }
+  return nodes.filter((node) => linked.has(node.id));
+};
+
 // A snapshot has to stay small enough to store and to render. Least connected
 // nodes go first, ties broken by age, so the spine of the story stays.
 export const capNodes = (

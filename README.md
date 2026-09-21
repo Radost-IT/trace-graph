@@ -33,6 +33,10 @@ bookkeeping is where it goes wrong:
   they cannot be updated incrementally — they have to be recomputed.
 - The snapshot has to stay small enough to store and to draw.
 - Re-running the same input must not produce a different graph.
+- Entities arrive that no relation ever reaches, and a circle with no line to
+  anything is a circle a viewer cannot read.
+- Relation labels arrive as `"is being assembled at"` when the thing they have
+  to fit on is an edge.
 
 ## Usage
 
@@ -78,6 +82,8 @@ Both normalise to the same id, so the edge connects.
 | `entityId(type, label)` | The stable id for an entity. `("person", "Dr. Jane Doe")` → `"person:jane-doe"`. |
 | `normaliseLabel(label)` | Strips honorifics and collapses whitespace. |
 | `applyMetrics(nodes, edges)` | Returns nodes with `degree` and `community` recomputed. |
+| `dropIsolated(nodes, edges)` | Only the nodes an edge reaches. |
+| `shortenRelation(label)` | The label an edge should carry. `"is being assembled at"` → `"assembled at"`. `""` means drop the relation. |
 | `capNodes(nodes, edges, maxNodes)` | Drops the least connected nodes and any edge left dangling. |
 | `DEFAULT_MAX_NODES` | `60`. |
 | `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EntityType`, `ExtractionResult` | zod schemas, each with a matching inferred TypeScript type of the same name. |
