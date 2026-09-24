@@ -415,3 +415,66 @@ test("dropIsolated keeps both ends of every edge", () => {
   ]);
   assert.deepEqual(kept.map((n) => n.id), ["a", "b"]);
 });
+
+test("a relation in the reverse direction does not add a second edge", () => {
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({
+      entities: [
+        { label: "A", type: "person", summary: "a" },
+        { label: "B", type: "person", summary: "b" },
+      ],
+      relations: [
+        { source: "A", target: "B", label: "knows" },
+        { source: "B", target: "A", label: "knows" },
+      ],
+    }),
+    AT,
+  );
+
+  assert.deepEqual(
+    snapshot.edges.map((e) => e.id),
+    ["person:a|person:b"],
+  );
+});
+
+test("communities are the same on every run of the same input", () => {
+  // Big enough that a random traversal order would find different partitions.
+  const labels = Array.from({ length: 30 }, (_, i) => `P${i}`);
+  const input = extraction({
+    entities: labels.map((label) => ({ label, type: "person" as const, summary: "s" })),
+    relations: labels.flatMap((label, i) =>
+      [1, 2, 7].map((step) => ({ source: label, target: labels[(i + step) % 30]!, label: "knows" })),
+    ),
+  });
+
+  const first = mergeExtraction(emptySnapshot("s"), input, AT);
+  for (let run = 0; run < 20; run += 1) {
+    assert.deepEqual(mergeExtraction(emptySnapshot("s"), input, AT), first);
+  }
+});
+
+test("an unparseable seenAt is rejected", () => {
+  const input = extraction({
+    entities: [
+      { label: "A", type: "person", summary: "a" },
+      { label: "B", type: "person", summary: "b" },
+    ],
+    relations: [{ source: "A", target: "B", label: "knows" }],
+  });
+
+  assert.throws(() => mergeExtraction(emptySnapshot("s"), input, "yesterday"));
+});
+
+test("capNodes returns the input untouched when under the limit", () => {
+  const nodes: GraphNode[] = [
+    { id: "a", type: "person", label: "A", summary: "", degree: 0, community: 0, firstSeenAt: AT },
+  ];
+  const capped = capNodes(nodes, [], 5);
+  assert.equal(capped.nodes, nodes);
+});
+
+test("normaliseLabel strips only one leading honorific", () => {
+  assert.equal(normaliseLabel("Prof. Dr. Ada Lovelace"), "Dr. Ada Lovelace");
+  assert.equal(normaliseLabel("Ada Lovelace, PhD"), "Ada Lovelace, PhD");
+});

@@ -1,31 +1,30 @@
 # Contributing to trace-graph
 
-Thanks for looking. This is a small, deliberately narrow package, so the most
-useful thing you can do before writing code is to check that what you want is
-in scope.
+This is a small package with a narrow scope. Check that your change is in
+scope before writing code.
 
 ## Scope
 
-`trace-graph` turns a stream of extractions — entities and relations described
-by **label** — into a running graph snapshot with stable ids, degree centrality
-and Louvain communities, capped to a size you choose.
+`trace-graph` turns a stream of extractions (entities and relations named by
+**label**) into a graph snapshot with stable ids, degree centrality and Louvain
+communities, capped to a size you choose.
 
-**In scope:** merge rules, id normalisation, metrics, capping, the wire-format
-schemas, correctness and determinism, and keeping the package free of DOM and
-native dependencies so it keeps running on Hermes.
+**In scope:** merge rules, id normalisation, metrics, capping, the schemas,
+correctness and determinism. The package must stay free of DOM and native
+dependencies so it keeps running on Hermes.
 
-**Out of scope**, and listed in the README for the same reason:
+**Out of scope:**
 
-- **Coreference.** Resolving "she" or "the administrator" to a person is a
-  model's job. Do it before you call `mergeExtraction`.
+- **Coreference.** Resolving "she" or "the administrator" to a person belongs
+  in the model, before `mergeExtraction` is called.
 - **Layout.** No coordinates, no force simulation.
-- **Persistence.** Snapshots are plain JSON; store them however you like.
-- **Rendering.** There is no UI here and there will not be one.
+- **Persistence.** Snapshots are plain JSON.
+- **Rendering.** No UI.
 
-A pull request that adds one of those will be declined however good it is, so
-please open an issue first if you are unsure which side of the line you are on.
+Pull requests that add any of these will be declined. Open an issue first if
+you are unsure.
 
-## Getting set up
+## Setup
 
 ```bash
 git clone https://github.com/Radost-IT/trace-graph.git
@@ -34,8 +33,7 @@ npm install
 npm test
 ```
 
-Node >= 22 is required. There is no test framework and no bundler to install —
-the tests run on Node's own runner and the only build step is `tsc`.
+Node >= 22. Tests use Node's built-in runner. The only build step is `tsc`.
 
 ```bash
 npm run build      # tsc -> dist/
@@ -43,20 +41,18 @@ npm run typecheck  # tsc --noEmit
 npm test           # builds, then runs test/*.test.ts
 ```
 
-The tests import from `../dist/index.js` rather than `../src/index.ts`. That is
-deliberate twice over: Node's type stripping does not map a `.js` specifier to
-a `.ts` file, and testing the built artifact is what actually ships.
+Tests import from `../dist/index.js`, not `../src/index.ts`. Node's type
+stripping does not map a `.js` import to a `.ts` file, and testing the built
+output tests what ships.
 
 ## Making a change
 
-1. **Write the test first.** Every merge rule in the README has a test named
-   after it. A change to behaviour that no test notices is a change nobody can
-   rely on.
-2. **Keep it small.** Minimum code that solves the problem. No speculative
-   options, no abstractions for a single call site.
-3. **Don't reformat what you didn't change.** Match the surrounding style.
-4. **Add a `## [Unreleased]` entry to [CHANGELOG.md](CHANGELOG.md)** describing
-   the change from a user's point of view, not the diff's.
+1. **Write the test first.** Each merge rule in the README has a test. A
+   behaviour change that no test catches is not a change users can rely on.
+2. **Keep it small.** No speculative options, no abstractions for one caller.
+3. **Don't reformat code you didn't change.** Match the surrounding style.
+4. **Add an entry under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).**
+   Describe the change as a user sees it.
 
 Before opening a pull request:
 
@@ -64,38 +60,34 @@ Before opening a pull request:
 npm run typecheck && npm test
 ```
 
-CI runs exactly that on Node 22 and 24.
+CI runs the same on Node 22 and 24.
 
-## Things that are breaking changes even when they look small
+## Breaking changes that look small
 
-Ids are derived from content, not generated. So:
+Ids come from content. So each of these is breaking:
 
-- Any change to `normaliseLabel` — a new honorific, different punctuation
-  handling, different casing — moves existing entities onto new ids.
+- Any change to `normaliseLabel`: a new honorific, different punctuation
+  handling, different casing.
 - Any change to the `entityId` format.
 - Any change to the edge id (`source|target`).
 
-All three break merges against snapshots stored by an older version. They are
-major-version changes, they need a CHANGELOG note saying so, and they need a
-strong reason. New honorifics are the most likely legitimate case.
+Each moves existing data onto new ids and breaks merges against snapshots
+stored by an older version. They need a major version, a CHANGELOG note and a
+strong reason. New honorifics are the most likely valid case.
 
-Changes to tie-breaking in `capNodes`, or to Louvain's inputs, change output
-without breaking stored data. Those are minor, but still want a CHANGELOG entry
-because they are visible to anyone drawing the graph.
+Changes to tie-breaking in `capNodes` or to the Louvain inputs change output
+but not stored ids. Those are minor versions, and still need a CHANGELOG entry.
 
 ## Reporting a bug
 
-Open an issue with the smallest `mergeExtraction` call that reproduces it — the
-extraction in, the snapshot you expected, the snapshot you got. Because merging
-is pure and deterministic, a reproduction is always a handful of lines, and one
-is worth more than a description.
+Open an issue with the smallest `mergeExtraction` call that shows it: the
+extraction you passed, the snapshot you expected, and the snapshot you got.
 
 ## Security
 
-Please do not open a public issue for a security problem. Email
-security@radostit.com instead.
+Do not open a public issue for a security problem. Email
+security@radostit.com.
 
 ## Licence
 
-By contributing you agree that your contribution is licensed under the MIT
-licence, the same as the rest of the project.
+Contributions are licensed under MIT, like the rest of the project.

@@ -68,8 +68,9 @@ export function mergeExtraction(
     const label = shortenRelation(relation.label);
     if (!label) continue;
 
+    // Undirected: B->A is the same edge as A->B.
     const id = `${source}|${target}`;
-    if (edges.has(id)) continue;
+    if (edges.has(id) || edges.has(`${target}|${source}`)) continue;
     edges.set(id, { id, source, target, label, firstSeenAt: seenAt });
   }
 

@@ -10,6 +10,7 @@ const Graph = graphology.default as unknown as typeof graphology.UndirectedGraph
 type GraphInstance = InstanceType<typeof graphology.UndirectedGraph>;
 const louvain = louvainModule.default as unknown as (
   graph: GraphInstance,
+  options: { randomWalk: boolean },
 ) => Record<string, number>;
 
 // Degree centrality drives node size and Louvain drives node colour - both
@@ -26,8 +27,12 @@ export const applyMetrics = (nodes: GraphNode[], edges: GraphEdge[]): GraphNode[
   }
 
   // Louvain needs at least one edge; an all-isolates graph is community 0.
+  // randomWalk is on by default and uses Math.random, so turn it off to keep
+  // the same input giving the same communities.
   const communities: Record<string, number> =
-    graph.size > 0 ? louvain(graph) : Object.fromEntries(nodes.map((n) => [n.id, 0]));
+    graph.size > 0
+      ? louvain(graph, { randomWalk: false })
+      : Object.fromEntries(nodes.map((n) => [n.id, 0]));
 
   return nodes.map((node) => ({
     ...node,

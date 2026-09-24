@@ -1,16 +1,15 @@
 # @radost-it/trace-graph
 
-Incremental knowledge-graph core. You hand it entities and relations described
-by **label**; it assigns stable ids, merges them into a running snapshot,
-recomputes degree centrality and Louvain communities, and caps the result to a
-size you choose.
+Incremental knowledge-graph core. You pass in entities and relations named by
+**label**. It assigns stable ids, merges them into a running snapshot,
+recomputes degree centrality and Louvain communities, and caps the snapshot to
+a size you choose.
 
-Pure JavaScript. No DOM, no Web APIs, no native modules — it runs in Node, in a
-browser, and on Hermes (React Native / Fire TV Vega OS), which is why it exists
-as its own package.
+No DOM, no Web APIs, no native modules. It runs in Node, in a browser, and on
+Hermes (React Native / Fire TV Vega OS).
 
-MIT licensed. Extracted from [Trace](https://github.com/Radost-IT/trace), which
-builds a live graph from a broadcast's audio.
+Extracted from [Trace](https://github.com/Radost-IT/trace), which builds a live
+graph from a broadcast's audio.
 
 ## Install
 
@@ -18,25 +17,21 @@ builds a live graph from a broadcast's audio.
 npm install @radost-it/trace-graph
 ```
 
-Requires Node >= 22 if you run it server-side. `zod` v4 is a dependency, not a
-peer — the exported schemas are real zod schemas you can compose with.
+Node >= 22 for server-side use. `zod` v4 is a regular dependency, not a peer.
+The exported schemas are zod schemas you can compose with your own.
 
-## The problem it solves
+## Why
 
-Building a graph from a stream of extractions is mostly bookkeeping, and the
-bookkeeping is where it goes wrong:
+Building a graph from a stream of extractions needs some bookkeeping:
 
-- The same entity arrives as `"Dr. Jane Doe"`, `"Jane Doe"` and `"jane doe"`
-  and has to land on one node.
-- Relations arrive naming entities by label, not by id.
-- Centrality and communities change for nodes nowhere near the new edge, so
-  they cannot be updated incrementally — they have to be recomputed.
-- The snapshot has to stay small enough to store and to draw.
-- Re-running the same input must not produce a different graph.
-- Entities arrive that no relation ever reaches, and a circle with no line to
-  anything is a circle a viewer cannot read.
-- Relation labels arrive as `"is being assembled at"` when the thing they have
-  to fit on is an edge.
+- `"Dr. Jane Doe"`, `"Jane Doe"` and `"jane doe"` must end up on one node.
+- Relations name entities by label, not by id.
+- One new edge can change centrality and communities for distant nodes, so
+  they are recomputed, not patched.
+- The snapshot must stay small enough to store and draw.
+- Merging the same input twice must give the same graph.
+- Entities with no relation add nothing to the drawing.
+- Relation labels like `"is being assembled at"` are too long for an edge.
 
 ## Usage
 
@@ -70,54 +65,59 @@ snapshot.nodes[0];
 // }
 ```
 
-Note the relation says `"Jane Doe"` while the entity said `"Dr. Jane Doe"`.
-Both normalise to the same id, so the edge connects.
+The relation says `"Jane Doe"` and the entity says `"Dr. Jane Doe"`. Both
+normalise to the same id, so the edge connects.
+
+If the extraction comes from an untrusted source such as a model's JSON output,
+validate it first with `ExtractionResult.parse(...)`. `mergeExtraction` only
+validates what it returns.
 
 ## API
 
 | Export | What it does |
 | --- | --- |
-| `mergeExtraction(snapshot, extraction, seenAt, options?)` | Merges one extraction into a snapshot. Pure and deterministic. Returns a new, validated snapshot. |
+| `mergeExtraction(snapshot, extraction, seenAt, options?)` | Merges one extraction into a snapshot. Pure and deterministic. Returns a new snapshot, validated with zod. Throws if `seenAt` is not an ISO datetime. |
 | `emptySnapshot(sessionId)` | A snapshot with no nodes or edges. |
 | `entityId(type, label)` | The stable id for an entity. `("person", "Dr. Jane Doe")` → `"person:jane-doe"`. |
-| `normaliseLabel(label)` | Strips honorifics and collapses whitespace. |
+| `normaliseLabel(label)` | Strips one leading honorific and collapses whitespace. |
 | `applyMetrics(nodes, edges)` | Returns nodes with `degree` and `community` recomputed. |
-| `dropIsolated(nodes, edges)` | Only the nodes an edge reaches. |
+| `dropIsolated(nodes, edges)` | Returns only the nodes an edge reaches. |
 | `shortenRelation(label)` | The label an edge should carry. `"is being assembled at"` → `"assembled at"`. `""` means drop the relation. |
 | `capNodes(nodes, edges, maxNodes)` | Drops the least connected nodes and any edge left dangling. |
 | `DEFAULT_MAX_NODES` | `60`. |
-| `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EntityType`, `ExtractionResult` | zod schemas, each with a matching inferred TypeScript type of the same name. |
+| `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EntityType`, `ExtractionResult` | zod schemas, each with an inferred TypeScript type of the same name. |
 
 ### Merge rules
 
-These are the decisions the package makes for you. They are deliberate, and
-they are the reason it is not just a `Map`:
+- **Ids come from content.** `entityId` lowercases, strips one leading
+  honorific and slugifies. The same label always gives the same id, so merges
+  are idempotent across processes and restarts.
+- **Relations resolve by label.** An endpoint is matched by its normalised,
+  lowercased label, not by type. If two entities of different types share a
+  label, the one merged last wins.
+- **The first non-empty summary wins.** Later summaries are ignored.
+- **`firstSeenAt` is written once.** It breaks ties when capping, so it must
+  not change.
+- **Unknown endpoints are dropped.** If a relation names something that is
+  neither in this extraction nor already on the graph, the edge is discarded.
+  No node is ever created for it.
+- **Edges are undirected.** The edge id is `source|target`. Self-edges are
+  dropped, and so is any relation whose pair already has an edge in either
+  direction. The first label stored for a pair is kept.
+- **Relations with an empty label are dropped.** Labels are stored after
+  `shortenRelation`.
+- **Nodes with no edge are dropped.** This is lossy: an entity named without a
+  relation is gone until a later extraction links it.
+- **Metrics are recomputed over the whole snapshot on every merge.** Louvain
+  runs with `randomWalk: false`, so the same input gives the same communities.
+- **Capping is by degree, then age.** The best-connected nodes stay. Ties go to
+  the oldest node.
 
-- **Ids are content-derived, not generated.** `entityId` lowercases, strips a
-  leading honorific, and slugifies. The same label always yields the same id,
-  so merging is idempotent across processes and across restarts.
-- **First summary wins.** A later pass rarely knows more about an entity than
-  the pass that introduced it, and a summary that rewrites itself under the
-  reader is worse than one that holds still.
-- **`firstSeenAt` is written once.** It is the tiebreaker when capping, so it
-  has to be stable.
-- **Unknown relation endpoints are dropped, never invented.** If a relation
-  names something that is not an entity in this extraction or already on the
-  graph, the edge is discarded. The graph never contains a node no producer
-  asserted.
-- **Self-edges and duplicate edges are dropped.** Edge id is `source|target`,
-  so an undirected pair is stored once.
-- **Metrics are recomputed over the whole snapshot on every merge.** One new
-  edge can change degree and community for nodes far away from it.
-- **Capping is by degree, then age.** The best-connected nodes survive, so the
-  spine of the story stays while the periphery churns.
-
-### What it does not do
+### Not in scope
 
 - **Coreference.** Resolving "she" or "the administrator" to a person is a
-  model's job, not a regex's. Do it before you call `mergeExtraction`.
-- **Layout.** No coordinates, no force simulation. Feed the snapshot to
-  `d3-force` or anything else.
+  job for the model. Do it before calling `mergeExtraction`.
+- **Layout.** No coordinates or force simulation. Use `d3-force` or similar.
 - **Persistence.** Snapshots are plain JSON. Store them however you like.
 
 ## Development
@@ -129,16 +129,14 @@ npm run typecheck  # tsc --noEmit
 npm test           # builds, then runs test/*.test.ts
 ```
 
-Node >= 22. No test framework and no bundler to install — the 17 tests run on
-Node's own runner and the only build step is `tsc`. CI runs `typecheck` and
-`test` on Node 22 and 24.
+Tests use Node's built-in test runner. The only build step is `tsc`. CI runs
+`typecheck` and `test` on Node 22 and 24.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it says what is in scope, what
-is deliberately not, and which small-looking changes are breaking ones. The
-short version: ids are derived from content, so touching `normaliseLabel` moves
-every existing node onto a new id.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for scope and for the small-looking
+changes that are breaking. In short: ids come from content, so any change to
+`normaliseLabel` moves existing nodes onto new ids.
 
 Released versions are listed in [CHANGELOG.md](CHANGELOG.md).
 
