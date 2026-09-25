@@ -1,6 +1,6 @@
 {
   "name": "@radost-it/trace-graph",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Incremental knowledge-graph core: stable entity ids, idempotent merge, degree centrality, Louvain communities and size capping. Pure JavaScript, no DOM.",
   "license": "MIT",
   "type": "module",

@@ -12,6 +12,8 @@ release and are marked here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-25
+
 ### Added
 
 - **`EntityType` gains `object`.** A named made thing - a spacecraft, a ship,
@@ -74,5 +76,6 @@ where it had been living as an internal package.
 - 17 tests covering merge rules, id stability, metric recomputation and
   capping, run on Node's built-in test runner.
 
-[Unreleased]: https://github.com/Radost-IT/trace-graph/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Radost-IT/trace-graph/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Radost-IT/trace-graph/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Radost-IT/trace-graph/releases/tag/v0.1.0
