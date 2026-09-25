@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export const EntityType = z.enum(["person", "organisation", "place", "event"]);
+// `object` is a named made thing: a spacecraft, a ship, a class of engine.
+// These were typed `organisation`, which put a rocket in the same colour as
+// the agency that flew it.
+export const EntityType = z.enum([
+  "person",
+  "organisation",
+  "place",
+  "event",
+  "object",
+]);
 export type EntityType = z.infer<typeof EntityType>;
 
 export const GraphNode = z.object({

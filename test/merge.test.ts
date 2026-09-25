@@ -478,3 +478,27 @@ test("normaliseLabel strips only one leading honorific", () => {
   assert.equal(normaliseLabel("Prof. Dr. Ada Lovelace"), "Dr. Ada Lovelace");
   assert.equal(normaliseLabel("Ada Lovelace, PhD"), "Ada Lovelace, PhD");
 });
+
+test("an object is typed and identified apart from its operator", () => {
+  // A rocket and the agency that flies it were both typed `organisation`,
+  // so a shared name put them on one id.
+  assert.notEqual(
+    entityId("object", "Thor Delta"),
+    entityId("organisation", "Thor Delta"),
+  );
+
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({
+      entities: [
+        { label: "Thor Delta", type: "object", summary: "The launch vehicle." },
+        { label: "NASA", type: "organisation", summary: "Flew it." },
+      ],
+      relations: [{ source: "NASA", target: "Thor Delta", label: "launched" }],
+    }),
+    AT,
+  );
+
+  const rocket = snapshot.nodes.find((n) => n.id === "object:thor-delta");
+  assert.equal(rocket?.type, "object");
+});

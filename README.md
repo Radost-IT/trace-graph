@@ -11,6 +11,13 @@ Hermes (React Native / Fire TV Vega OS).
 Extracted from [Trace](https://github.com/Radost-IT/trace), which builds a live
 graph from a broadcast's audio.
 
+![Ten nodes and eleven edges after three merges: colour is the entity type, radius is degree centrality](docs/graph.png)
+
+The picture comes from a real snapshot. `node docs/make-graph-image.mjs` runs
+three extractions through `mergeExtraction` and writes `docs/graph.svg`.
+`docs/graph.png` is a render of that file. Layout and colours live in the
+script, not in the package.
+
 ## Install
 
 ```bash
@@ -86,6 +93,23 @@ validates what it returns.
 | `capNodes(nodes, edges, maxNodes)` | Drops the least connected nodes and any edge left dangling. |
 | `DEFAULT_MAX_NODES` | `60`. |
 | `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EntityType`, `ExtractionResult` | zod schemas, each with an inferred TypeScript type of the same name. |
+
+### Entity types
+
+`EntityType` is a closed set of five, small enough for one colour legend.
+
+| Type | What it holds |
+| --- | --- |
+| `person` | A named human. |
+| `organisation` | A company, agency, government body, armed service, team or programme. |
+| `place` | A named location - a country, a city, a site, a base, a facility. |
+| `event` | A named happening - a launch, a summit, a strike, a war. |
+| `object` | A named made thing - a spacecraft, a ship, an aircraft, an instrument, a class of hardware. |
+
+The thing is the `object`. Whoever built or operates it is the
+`organisation`. Type is part of
+the id, so `Thor Delta` the rocket and `Thor Delta` the programme stay two
+nodes.
 
 ### Merge rules
 

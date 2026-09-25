@@ -14,6 +14,13 @@ release and are marked here.
 
 ### Added
 
+- **`EntityType` gains `object`.** A named made thing - a spacecraft, a ship,
+  an aircraft, an instrument, a class of hardware. Producers were typing these
+  `organisation`, which put a rocket in the same bucket as the agency that flew
+  it. An older reader validating a newer snapshot will reject `object` nodes.
+  Nothing already stored changes.
+- `docs/make-graph-image.mjs`, which draws the README's picture from a snapshot
+  the package builds. Not published: `files` is `dist`, README and LICENSE.
 - `shortenRelation(label)`. Collapses whitespace, strips leading auxiliaries
   and articles, and maps a few long connectors onto short ones
   (`"in collaboration with"` -> `"with"`). It only makes changes that keep the
