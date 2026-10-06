@@ -30,7 +30,9 @@ export function mergeExtraction(
   const maxNodes = options.maxNodes ?? DEFAULT_MAX_NODES;
   const nodes = new Map(snapshot.nodes.map((n) => [n.id, n]));
   const edges = new Map(snapshot.edges.map((e) => [e.id, e]));
-  const idByLabel = new Map(snapshot.nodes.map((n) => [n.label.toLowerCase(), n.id]));
+  const idByLabel = new Map(
+    snapshot.nodes.map((n) => [normaliseLabel(n.label).toLowerCase(), n.id]),
+  );
 
   for (const entity of extraction.entities) {
     const label = normaliseLabel(entity.label);
@@ -42,7 +44,10 @@ export function mergeExtraction(
     nodes.set(id, {
       id,
       type: entity.type,
-      label,
+      // Shown as spoken. The id drops the honorific so mentions merge, but
+      // "Mrs. Robert H. Hopkins" read as "Robert H. Hopkins" names someone else.
+      // First label wins, like the summary.
+      label: existing?.label ?? entity.label.replace(/\s+/g, " ").trim(),
       // First grounded summary wins. A later window rarely knows more about an
       // entity than the window that introduced it, and a summary that rewrites
       // itself under the viewer is worse than one that holds still.

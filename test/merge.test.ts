@@ -62,6 +62,24 @@ test("a relation resolves to entities named differently in the same window", () 
   assert.equal(snapshot.edges[0]!.target, "organisation:nasa");
 });
 
+test("a label keeps its honorific while the id drops it", () => {
+  const snapshot = mergeExtraction(
+    emptySnapshot("s"),
+    extraction({
+      entities: [
+        { label: "Mrs.  Robert H. Hopkins", type: "person", summary: "Christens it." },
+        { label: "Ethan Allen", type: "object", summary: "A submarine." },
+      ],
+      relations: [{ source: "Ethan Allen", target: "Robert H. Hopkins", label: "christened by" }],
+    }),
+    AT,
+  );
+
+  const hopkins = snapshot.nodes.find((n) => n.id === "person:robert-h-hopkins");
+  assert.equal(hopkins?.label, "Mrs. Robert H. Hopkins");
+  assert.equal(snapshot.edges.length, 1);
+});
+
 test("relations naming unknown entities are dropped, never invented", () => {
   const snapshot = mergeExtraction(
     emptySnapshot("s"),

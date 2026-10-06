@@ -64,7 +64,7 @@ snapshot.nodes[0];
 // {
 //   id: "person:jane-doe",       // honorific stripped, slugified
 //   type: "person",
-//   label: "Jane Doe",
+//   label: "Dr. Jane Doe",       // as spoken; the first label wins
 //   summary: "Leads the mission team.",
 //   degree: 1,                    // recomputed across the whole snapshot
 //   community: 0,                 // Louvain
