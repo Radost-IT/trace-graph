@@ -12,6 +12,16 @@ release and are marked here.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-06
+
+### Fixed
+
+- **A node's label keeps its honorific.** `mergeExtraction` used to store the
+  label after `normaliseLabel`, so "Mrs. Robert H. Hopkins" was shown as
+  "Robert H. Hopkins", which names someone else. The label is now kept as the
+  producer gave it, with whitespace collapsed, and the first label for an id
+  wins. Ids are unchanged, so stored snapshots merge as before.
+
 ## [0.2.0] - 2026-09-25
 
 ### Added
@@ -76,6 +86,7 @@ where it had been living as an internal package.
 - 17 tests covering merge rules, id stability, metric recomputation and
   capping, run on Node's built-in test runner.
 
-[Unreleased]: https://github.com/Radost-IT/trace-graph/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Radost-IT/trace-graph/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Radost-IT/trace-graph/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Radost-IT/trace-graph/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Radost-IT/trace-graph/releases/tag/v0.1.0
